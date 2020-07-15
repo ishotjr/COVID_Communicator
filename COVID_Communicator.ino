@@ -9,7 +9,8 @@
 #include <LilyGoWatch.h>
 
 TTGOClass *ttgo;
-
+String message = "";
+lv_obj_t *msg;
 
 // The MQTT topics that this device should publish/subscribe
 #define AWS_IOT_PUBLISH_TOPIC   "esp32/pub"
@@ -23,12 +24,13 @@ void connectAWS()
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  Serial.println("Connecting to Wi-Fi");
+  Serial.print("Connecting to Wi-Fi");
 
   while (WiFi.status() != WL_CONNECTED){
     delay(500);
     Serial.print(".");
   }
+  Serial.println("");
 
   // Configure WiFiClientSecure to use the AWS IoT device credentials
   net.setCACert(AWS_CERT_CA);
@@ -47,6 +49,7 @@ void connectAWS()
     Serial.print(".");
     delay(100);
   }
+  Serial.println("");
 
   if(!client.connected()){
     Serial.println("AWS IoT Timeout!");
@@ -81,9 +84,23 @@ void publishMessage()
 void messageHandler(String &topic, String &payload) {
   Serial.println("incoming: " + topic + " - " + payload);
 
-//  StaticJsonDocument<200> doc;
-//  deserializeJson(doc, payload);
-//  const char* message = doc["message"];
+  StaticJsonDocument<200> doc;
+  char json[] = "{\"message\":\"world\"}";
+  Serial.println(String(json));
+  //deserializeJson(doc, json);
+
+  // for some reason payload is coming back from AWS double-escaped?
+  String escaped = payload;
+  escaped.replace("\\", "");
+  // and wrapped in an extra set of quotes!
+  escaped = escaped.substring(1, escaped.length() - 1);
+  Serial.println("escaped: " + escaped);
+  
+  deserializeJson(doc, escaped);
+  const char* val = doc["message"];
+  message = String(val);
+
+  Serial.println(message);
 }
 
 void event_handler(lv_obj_t *obj, lv_event_t event) {
@@ -108,14 +125,21 @@ void setup() {
   
   label = lv_label_create(btn1, NULL);
   lv_label_set_text(label, "Security");
-  
 
+  msg = lv_label_create(lv_scr_act(), NULL);
+  lv_label_set_text(msg, message.c_str());
+  lv_obj_align(msg, NULL, LV_ALIGN_CENTER, 0, -80);
+  
   Serial.begin(9600);
   connectAWS();
 }
 
 void loop() {
 
+  lv_label_set_text(msg, message.c_str());
+  // re-align as text changes
+  lv_obj_align(msg, NULL, LV_ALIGN_CENTER, 0, -80);
+  
   lv_task_handler();
 
   // MQTT
