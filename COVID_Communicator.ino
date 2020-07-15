@@ -89,11 +89,15 @@ void messageHandler(String &topic, String &payload) {
   Serial.println(String(json));
   //deserializeJson(doc, json);
 
-  // for some reason payload is coming back from AWS double-escaped?
   String escaped = payload;
-  escaped.replace("\\", "");
-  // and wrapped in an extra set of quotes!
-  escaped = escaped.substring(1, escaped.length() - 1);
+
+  // for some reason payload is double-escaped
+  // and wrapped in an extra set of quotes
+  // when using curl
+  if (escaped.charAt(0) == '\"') {
+    escaped.replace("\\", "");
+    escaped = escaped.substring(1, escaped.length() - 1);
+  }
   Serial.println("escaped: " + escaped);
   
   deserializeJson(doc, escaped);
